@@ -118,10 +118,10 @@ function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
-                  href="https://github.com/zatfer"
+                  href="https://github.com/Zatfer17"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 bg-primary rounded-full hover:opacity-70 transition-opacity"
+                  className="w-6 h-6 bg-gray-500 rounded-full hover:opacity-70 transition-opacity"
                 />
               </TooltipTrigger>
               <TooltipContent>GitHub</TooltipContent>
@@ -130,10 +130,10 @@ function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
-                  href="https://soundcloud.com/zatfer"
+                  href="https://soundcloud.com/matteo-ferrini"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 bg-orange-500 rounded-full hover:opacity-70 transition-opacity"
+                  className="w-6 h-6 bg-orange-400 rounded-full hover:opacity-70 transition-opacity"
                 />
               </TooltipTrigger>
               <TooltipContent>SoundCloud</TooltipContent>
@@ -142,10 +142,10 @@ function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
-                  href="https://linkedin.com/in/zatfer"
+                  href="https://www.linkedin.com/in/matteo-ferrini/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 bg-blue-600 rounded-full hover:opacity-70 transition-opacity"
+                  className="w-6 h-6 bg-blue-400 rounded-full hover:opacity-70 transition-opacity"
                 />
               </TooltipTrigger>
               <TooltipContent>LinkedIn</TooltipContent>
