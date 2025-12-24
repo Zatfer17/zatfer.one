@@ -90,17 +90,17 @@ function App() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-white">
-        <header className="px-8 py-6 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">zatfer</h1>
+        <header className="px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">zatfer</h1>
             {/* Reset Lever */}
             <div 
               ref={trackRef}
-              className="relative w-24 h-8 bg-muted rounded-full cursor-pointer select-none"
+              className="relative w-20 md:w-24 h-7 md:h-8 bg-muted rounded-full cursor-pointer select-none"
             >
               <div 
                 ref={leverRef}
-                className={`absolute top-1 w-6 h-6 bg-primary rounded-full cursor-grab active:cursor-grabbing ${
+                className={`absolute top-1 w-5 md:w-6 h-5 md:h-6 bg-primary rounded-full cursor-grab active:cursor-grabbing ${
                   isDragging ? '' : 'transition-all duration-200'
                 }`}
                 style={{ right: `${4 + (leverPosition / 100) * 64}px` }}
@@ -113,7 +113,7 @@ function App() {
               )}
             </div>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-3 md:gap-4 items-center">
             {/* GitHub - Black dot */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -152,13 +152,13 @@ function App() {
             </Tooltip>
           </div>
         </header>
-        <main className="flex flex-col md:flex-row md:items-start gap-8 pt-24 px-8">
+        <main className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8 pt-8 md:pt-24 px-4 md:px-8">
           {/* Column 1 - Gashapon */}
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 flex justify-center order-1">
             <img 
               src={gashaponImage} 
               alt="Gashapon machine" 
-              className={`max-w-md h-auto cursor-pointer transition-transform duration-200 ${
+              className={`w-48 md:max-w-md h-auto cursor-pointer transition-transform duration-200 ${
                 isStretching ? 'scale-y-110' : 'scale-y-100'
               } ${availableElements.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleClick}
@@ -166,50 +166,50 @@ function App() {
           </div>
 
           {/* Column 2 - Current Element Display */}
-          <div className="flex-1 flex justify-center px-4">
+          <div className="flex-1 flex justify-center px-0 md:px-4 order-2">
             {currentElement && (
-              <Card className="animate-fade-in w-[400px] border-0 shadow-none">
-                <CardContent className="p-6">
+              <Card className="animate-fade-in w-full md:w-[400px] border-0 shadow-none">
+                <CardContent className="p-4 md:p-6">
                   {/* Row 1 - Title, Link Icon and Image */}
-                  <div className="flex items-start gap-4 mb-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
                     {currentElement.image && (
                       <img 
                         src={currentElement.image} 
                         alt={currentElement.title}
-                        className="w-40 h-40 object-cover rounded-lg flex-shrink-0"
+                        className="w-full sm:w-32 md:w-40 h-48 sm:h-32 md:h-40 object-cover rounded-lg flex-shrink-0"
                       />
                     )}
-                    <div className="flex-1 flex items-start">
-                      <div className="flex items-start gap-2">
-                        <h2 className="text-4xl font-black flex-1" style={{ fontFamily: "'EB Garamond', serif" }}>{currentElement.title}</h2>
+                    <div className="flex-1 flex items-start w-full">
+                      <div className="flex items-start gap-2 w-full">
+                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black flex-1" style={{ fontFamily: "'EB Garamond', serif" }}>{currentElement.title}</h2>
                         <a 
                           href={currentElement.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-1"
                         >
-                          <Link className="w-6 h-6" />
+                          <Link className="w-5 h-5 md:w-6 md:h-6" />
                         </a>
                       </div>
                     </div>
                   </div>
                   {/* Row 2 - Description */}
-                  <p className="text-muted-foreground text-justify text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>{currentElement.description}</p>
+                  <p className="text-muted-foreground text-justify text-base md:text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>{currentElement.description}</p>
                 </CardContent>
               </Card>
             )}
           </div>
 
           {/* Column 3 - Grid of cells */}
-          <div className="flex-1 flex justify-center px-4">
-            <div className="grid grid-cols-4 gap-4">
+          <div className="flex-1 flex justify-center px-0 md:px-4 order-3">
+            <div className="grid grid-cols-4 gap-2 md:gap-4">
               {Array.from({ length: 16 }).map((_, index) => {
                 const cellId = index + 1
                 const filledElement = filledCells[cellId]
                 return (
                   <div
                     key={cellId}
-                    className={`w-16 h-24 rounded-4xl overflow-hidden flex items-center justify-center ${
+                    className={`w-12 h-18 md:w-16 md:h-24 rounded-3xl md:rounded-4xl overflow-hidden flex items-center justify-center ${
                       filledElement ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
                     }`}
                     onClick={() => filledElement && setCurrentElement(filledElement)}
