@@ -11,4 +11,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  base: "/", // Use '/' if using a custom domain, or '/repo-name/' if not
 })
