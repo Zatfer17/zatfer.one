@@ -3,7 +3,6 @@ import gashaponImage from './assets/gashapon.png'
 import elementsData from './data/elements.json'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Link } from 'lucide-react'
 import { siteConfig } from './config/siteConfig'
 import {
   layoutNextLine,
@@ -27,7 +26,14 @@ interface Ball {
   vx: number
   vy: number
   r: number
-  color: readonly [number, number, number]
+  color: string
+  paused: boolean
+}
+
+interface OpenedCapsule {
+  element: Element
+  color: string
+  radius: number
 }
 
 interface PositionedLine {
@@ -39,6 +45,13 @@ interface PositionedLine {
 type Interval = {
   left: number
   right: number
+}
+
+type ObstacleRect = {
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 const FOOTER_HEIGHT = siteConfig.layout.footerReservedHeight
@@ -53,6 +66,8 @@ const MIN_FLOAT_SPEED = siteConfig.balls.speed.floatMin
 const MAX_FLOAT_SPEED = siteConfig.balls.speed.floatMax
 const GASHAPON_OFFSET_X = siteConfig.layout.gashaponOffsetX
 const GASHAPON_OFFSET_Y = siteConfig.layout.gashaponOffsetY
+const GASHAPON_WIDTH = siteConfig.layout.gashaponWidth
+const GASHAPON_MAX_WIDTH = siteConfig.layout.gashaponMaxWidth
 const ORB_COLORS = siteConfig.balls.colors
 
 function clamp(value: number, min: number, max: number): number {
@@ -61,17 +76,6 @@ function clamp(value: number, min: number, max: number): number {
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min)
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '')
-  const full = cleaned.length === 3
-    ? `${cleaned[0]}${cleaned[0]}${cleaned[1]}${cleaned[1]}${cleaned[2]}${cleaned[2]}`
-    : cleaned
-  const r = parseInt(full.slice(0, 2), 16)
-  const g = parseInt(full.slice(2, 4), 16)
-  const b = parseInt(full.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function carveTextLineSlots(base: Interval, blocked: Interval[]): Interval[] {
@@ -116,26 +120,56 @@ function circleIntervalForBand(
   return { left: cx - maxDx - 8, right: cx + maxDx + 8 }
 }
 
+function resolveBallRectCollision(ball: Ball, rect: ObstacleRect): void {
+  const nearestX = clamp(ball.x, rect.left, rect.right)
+  const nearestY = clamp(ball.y, rect.top, rect.bottom)
+  const dx = ball.x - nearestX
+  const dy = ball.y - nearestY
+  const distSq = dx * dx + dy * dy
+  if (distSq >= ball.r * ball.r) return
+
+  const dist = Math.sqrt(Math.max(distSq, 0.0001))
+  const nx = dx / dist
+  const ny = dy / dist
+
+  ball.x = nearestX + nx * (ball.r + 1)
+  ball.y = nearestY + ny * (ball.r + 1)
+
+  const dot = ball.vx * nx + ball.vy * ny
+  if (dot < 0) {
+    ball.vx -= 2 * dot * nx
+    ball.vy -= 2 * dot * ny
+    ball.vx *= 0.92
+    ball.vy *= 0.92
+  }
+}
+
 function App() {
   const [isStretching, setIsStretching] = useState(false)
   const [availableElements, setAvailableElements] = useState<Element[]>([])
   const [currentElement, setCurrentElement] = useState<Element | null>(null)
   const [leverPosition, setLeverPosition] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
-  const [balls, setBalls] = useState<Ball[]>([])
+  const [floatingBall, setFloatingBall] = useState<Ball | null>(null)
+  const [openedCapsules, setOpenedCapsules] = useState<Record<number, OpenedCapsule>>({})
   const [titleRect, setTitleRect] = useState<DOMRect | null>(null)
   const [descriptionRect, setDescriptionRect] = useState<DOMRect | null>(null)
   const leverRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   const gashaponRef = useRef<HTMLImageElement>(null)
+  const headerTitleRef = useRef<HTMLHeadingElement>(null)
+  const githubButtonRef = useRef<HTMLAnchorElement>(null)
+  const soundcloudButtonRef = useRef<HTMLAnchorElement>(null)
+  const linkedInButtonRef = useRef<HTMLAnchorElement>(null)
+  const footerDotsRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
   const descriptionRef = useRef<HTMLDivElement>(null)
-  const ballsRef = useRef<Ball[]>([])
+  const floatingBallRef = useRef<Ball | null>(null)
 
   useEffect(() => {
-    ballsRef.current = balls
-  }, [balls])
+    floatingBallRef.current = floatingBall
+  }, [floatingBall])
 
   const preparedTitle = useMemo(() => {
     if (!currentElement?.title) return null
@@ -153,6 +187,18 @@ function App() {
     if (!expandedDescription) return null
     return prepareWithSegments(expandedDescription, DESCRIPTION_FONT)
   }, [expandedDescription])
+
+  const toggleFloatingPause = () => {
+    setFloatingBall(prev => {
+      if (!prev) return prev
+      setCurrentElement(prev.element)
+      const nextPaused = !prev.paused
+      return {
+        ...prev,
+        paused: nextPaused,
+      }
+    })
+  }
 
   const titleLines = useMemo(() => {
     if (!preparedTitle || !titleRect || !pageRef.current) return [] as PositionedLine[]
@@ -172,8 +218,9 @@ function App() {
       const bandBottom = bandTop + TITLE_LINE_HEIGHT
       const blocked: Interval[] = []
 
-      for (let i = 0; i < balls.length; i++) {
-        const ball = balls[i]!
+      const activeBalls = floatingBall ? [floatingBall] : []
+      for (let i = 0; i < activeBalls.length; i++) {
+        const ball = activeBalls[i]!
         const interval = circleIntervalForBand(ball.x, ball.y, ball.r, bandTop, bandBottom)
         if (interval === null) continue
         blocked.push({
@@ -202,7 +249,7 @@ function App() {
     }
 
     return lines
-  }, [balls, preparedTitle, titleRect])
+  }, [floatingBall, preparedTitle, titleRect])
 
   const descriptionLines = useMemo(() => {
     if (!preparedDescription || !descriptionRect || !pageRef.current) return [] as PositionedLine[]
@@ -222,8 +269,9 @@ function App() {
       const bandBottom = bandTop + DESCRIPTION_LINE_HEIGHT
       const blocked: Interval[] = []
 
-      for (let i = 0; i < balls.length; i++) {
-        const ball = balls[i]!
+      const activeBalls = floatingBall ? [floatingBall] : []
+      for (let i = 0; i < activeBalls.length; i++) {
+        const ball = activeBalls[i]!
         const interval = circleIntervalForBand(ball.x, ball.y, ball.r, bandTop, bandBottom)
         if (interval === null) continue
         blocked.push({
@@ -252,7 +300,7 @@ function App() {
     }
 
     return lines
-  }, [balls, preparedDescription, descriptionRect])
+  }, [floatingBall, preparedDescription, descriptionRect])
 
   useEffect(() => {
     setAvailableElements([...elementsData])
@@ -294,112 +342,83 @@ function App() {
 
       const dt = Math.min((now - lastFrame) / 1000, 0.05)
       lastFrame = now
-      const gashaponRect = gashaponRef.current?.getBoundingClientRect()
+      const obstacleElements = [
+        gashaponRef.current,
+        headerTitleRef.current,
+        trackRef.current,
+        githubButtonRef.current,
+        soundcloudButtonRef.current,
+        linkedInButtonRef.current,
+        footerDotsRef.current,
+      ]
+      const obstacles: ObstacleRect[] = []
+      for (let i = 0; i < obstacleElements.length; i++) {
+        const element = obstacleElements[i]
+        if (!element) continue
+        const rect = element.getBoundingClientRect()
+        obstacles.push({
+          left: rect.left - pageRect.left,
+          top: rect.top - pageRect.top,
+          right: rect.right - pageRect.left,
+          bottom: rect.bottom - pageRect.top,
+        })
+      }
 
-      const next = ballsRef.current.map(ball => {
-        const b = { ...ball }
+      const current = floatingBallRef.current
+      if (current === null) {
+        animationFrameId = requestAnimationFrame(tick)
+        return
+      }
 
-        b.x += b.vx * dt
-        b.y += b.vy * dt
+      const b = { ...current }
 
-        const speed = Math.hypot(b.vx, b.vy)
-        if (speed > 0.001) {
-          if (speed < MIN_FLOAT_SPEED) {
-            const scale = MIN_FLOAT_SPEED / speed
-            b.vx *= scale
-            b.vy *= scale
-          } else if (speed > MAX_FLOAT_SPEED) {
-            const scale = MAX_FLOAT_SPEED / speed
-            b.vx *= scale
-            b.vy *= scale
-          }
-        }
+      if (b.paused) {
+        animationFrameId = requestAnimationFrame(tick)
+        return
+      }
 
-        b.vx += Math.sin(now * 0.0007 + b.id) * siteConfig.balls.speed.driftX
-        b.vy += Math.cos(now * 0.0009 + b.id) * siteConfig.balls.speed.driftY
+      b.x += b.vx * dt
+      b.y += b.vy * dt
 
-        if (b.x - b.r <= 0) {
-          b.x = b.r
-          b.vx = Math.abs(b.vx)
-        }
-        if (b.x + b.r >= pageRect.width) {
-          b.x = pageRect.width - b.r
-          b.vx = -Math.abs(b.vx)
-        }
-        if (b.y - b.r <= 0) {
-          b.y = b.r
-          b.vy = Math.abs(b.vy)
-        }
-        if (b.y + b.r >= pageRect.height - FOOTER_HEIGHT) {
-          b.y = pageRect.height - FOOTER_HEIGHT - b.r
-          b.vy = -Math.abs(b.vy) * 0.92
-        }
-
-        if (gashaponRect) {
-          const left = gashaponRect.left - pageRect.left
-          const top = gashaponRect.top - pageRect.top
-          const right = left + gashaponRect.width
-          const bottom = top + gashaponRect.height
-
-          const nearestX = clamp(b.x, left, right)
-          const nearestY = clamp(b.y, top, bottom)
-          const dx = b.x - nearestX
-          const dy = b.y - nearestY
-          const distSq = dx * dx + dy * dy
-
-          if (distSq < b.r * b.r) {
-            const dist = Math.sqrt(Math.max(distSq, 0.0001))
-            const nx = dx / dist
-            const ny = dy / dist
-
-            b.x = nearestX + nx * (b.r + 1)
-            b.y = nearestY + ny * (b.r + 1)
-
-            const dot = b.vx * nx + b.vy * ny
-            if (dot < 0) {
-              b.vx -= 2 * dot * nx
-              b.vy -= 2 * dot * ny
-              b.vx *= 0.92
-              b.vy *= 0.92
-            }
-          }
-        }
-
-        return b
-      })
-
-      for (let i = 0; i < next.length; i++) {
-        const a = next[i]!
-        for (let j = i + 1; j < next.length; j++) {
-          const b = next[j]!
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const dist = Math.hypot(dx, dy)
-          const minDist = a.r + b.r + 4
-          if (dist >= minDist || dist <= 0.001) continue
-
-          const nx = dx / dist
-          const ny = dy / dist
-          const overlap = minDist - dist
-
-          a.x -= nx * (overlap * 0.5)
-          a.y -= ny * (overlap * 0.5)
-          b.x += nx * (overlap * 0.5)
-          b.y += ny * (overlap * 0.5)
-
-          const avn = a.vx * nx + a.vy * ny
-          const bvn = b.vx * nx + b.vy * ny
-          const impulse = (bvn - avn) * 0.92
-
-          a.vx += nx * impulse
-          a.vy += ny * impulse
-          b.vx -= nx * impulse
-          b.vy -= ny * impulse
+      const speed = Math.hypot(b.vx, b.vy)
+      if (speed > 0.001) {
+        if (speed < MIN_FLOAT_SPEED) {
+          const scale = MIN_FLOAT_SPEED / speed
+          b.vx *= scale
+          b.vy *= scale
+        } else if (speed > MAX_FLOAT_SPEED) {
+          const scale = MAX_FLOAT_SPEED / speed
+          b.vx *= scale
+          b.vy *= scale
         }
       }
 
-      ballsRef.current = next
-      setBalls(next)
+      b.vx += Math.sin(now * 0.0007 + b.id) * siteConfig.balls.speed.driftX
+      b.vy += Math.cos(now * 0.0009 + b.id) * siteConfig.balls.speed.driftY
+
+      if (b.x - b.r <= 0) {
+        b.x = b.r
+        b.vx = Math.abs(b.vx)
+      }
+      if (b.x + b.r >= pageRect.width) {
+        b.x = pageRect.width - b.r
+        b.vx = -Math.abs(b.vx)
+      }
+      if (b.y - b.r <= 0) {
+        b.y = b.r
+        b.vy = Math.abs(b.vy)
+      }
+      if (b.y + b.r >= pageRect.height - FOOTER_HEIGHT) {
+        b.y = pageRect.height - FOOTER_HEIGHT - b.r
+        b.vy = -Math.abs(b.vy) * 0.92
+      }
+
+      for (let i = 0; i < obstacles.length; i++) {
+        resolveBallRectCollision(b, obstacles[i]!)
+      }
+
+      floatingBallRef.current = b
+      setFloatingBall(b)
       animationFrameId = requestAnimationFrame(tick)
     }
 
@@ -433,25 +452,58 @@ function App() {
     const angle = Math.random() * Math.PI * 2
     const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
 
-    setBalls(prev => [
+    setOpenedCapsules(prev => ({
       ...prev,
-      {
-        id: Date.now() + Math.random(),
+      [drawnElement.id]: {
         element: drawnElement,
-        x: spawnX,
-        y: spawnY,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        r,
         color,
+        radius: r,
       },
-    ])
+    }))
+
+    setFloatingBall({
+      id: Date.now() + Math.random(),
+      element: drawnElement,
+      x: spawnX,
+      y: spawnY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r,
+      color,
+      paused: false,
+    })
+  }
+
+  const activateCapsule = (capsule: OpenedCapsule) => {
+    setCurrentElement(capsule.element)
+    if (!pageRef.current) return
+
+    const pageRect = pageRef.current.getBoundingClientRect()
+    const safeMargin = 96
+    const spawnX = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.width - safeMargin))
+    const spawnY = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.height - FOOTER_HEIGHT - safeMargin))
+    const r = capsule.radius
+    const angle = Math.random() * Math.PI * 2
+    const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
+
+    setFloatingBall({
+      id: Date.now() + Math.random(),
+      element: capsule.element,
+      x: spawnX,
+      y: spawnY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r,
+      color: capsule.color,
+      paused: false,
+    })
   }
 
   const handleReset = () => {
     setAvailableElements([...elementsData])
     setCurrentElement(null)
-    setBalls([])
+    setFloatingBall(null)
+    setOpenedCapsules({})
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -492,34 +544,37 @@ function App() {
     <TooltipProvider>
       <div
         ref={pageRef}
-        className="min-h-screen relative overflow-hidden"
+        className="h-screen relative overflow-hidden"
         style={{
           background: siteConfig.theme.backgroundColor,
           color: siteConfig.theme.fontColor,
         }}
       >
-        {balls.map(ball => (
+        {floatingBall && (
           <button
-            key={ball.id}
+            key={floatingBall.id}
             type="button"
-            aria-label={`Open ${ball.element.title}`}
-            onClick={() => setCurrentElement(ball.element)}
+            aria-label={`Open ${floatingBall.element.title}`}
+            onClick={toggleFloatingPause}
             className="absolute rounded-full z-20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
             style={{
-              left: `${ball.x - ball.r}px`,
-              top: `${ball.y - ball.r}px`,
-              width: `${ball.r * 2}px`,
-              height: `${ball.r * 2}px`,
-              background: `linear-gradient(145deg, rgba(255,255,255,0.3), rgba(255,255,255,0) 32%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.4), rgba(0,0,0,0) 48%), rgb(${ball.color[0]}, ${ball.color[1]}, ${ball.color[2]})`,
-              boxShadow: 'inset -14px -16px 24px rgba(0,0,0,0.28), inset 10px 10px 14px rgba(255,255,255,0.18), 0 10px 24px rgba(0,0,0,0.46)',
-              border: '1px solid rgba(0,0,0,0.25)',
+              left: `${floatingBall.x - floatingBall.r}px`,
+              top: `${floatingBall.y - floatingBall.r}px`,
+              width: `${floatingBall.r * 2}px`,
+              height: `${floatingBall.r * 2}px`,
+              background: `linear-gradient(145deg, rgba(255,255,255,0.3), rgba(255,255,255,0) 32%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.4), rgba(0,0,0,0) 48%), ${floatingBall.color}`,
+              boxShadow: floatingBall.paused
+                ? 'inset -14px -16px 24px rgba(0,0,0,0.35), inset 10px 10px 14px rgba(255,255,255,0.18), 0 6px 12px rgba(0,0,0,0.32)'
+                : 'inset -14px -16px 24px rgba(0,0,0,0.28), inset 10px 10px 14px rgba(255,255,255,0.18), 0 10px 24px rgba(0,0,0,0.46)',
+              opacity: floatingBall.paused ? 0.78 : 1,
             }}
           />
-        ))}
+        )}
 
         <header className="relative z-10 px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4">
             <h1
+              ref={headerTitleRef}
               className="font-bold"
               style={{
                 fontSize: `${siteConfig.typography.headerSize}px`,
@@ -528,10 +583,13 @@ function App() {
             >
               zatfer
             </h1>
+          </div>
+
+          <div className="flex items-center gap-4 md:gap-5">
             {/* Reset Lever */}
             <div 
               ref={trackRef}
-              className="relative w-20 md:w-24 h-7 md:h-8 rounded-full cursor-pointer select-none"
+              className="relative w-20 md:w-24 h-6 rounded-full cursor-pointer select-none"
               style={{
                 background: siteConfig.colors.resetWidget.trackBackground,
                 border: `1px solid ${siteConfig.colors.resetWidget.trackBorder}`,
@@ -539,12 +597,14 @@ function App() {
             >
               <div 
                 ref={leverRef}
-                className={`absolute top-1 w-5 md:w-6 h-5 md:h-6 rounded-full cursor-grab active:cursor-grabbing ${
+                className={`absolute w-4 h-4 md:w-4 md:h-4 rounded-full cursor-grab active:cursor-grabbing ${
                   isDragging ? '' : 'transition-all duration-200'
                 }`}
                 style={{
                   background: siteConfig.colors.resetWidget.knob,
                   right: `${4 + (leverPosition / 100) * 64}px`,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                 }}
                 onMouseDown={handleMouseDown}
               />
@@ -560,12 +620,13 @@ function App() {
                 </span>
               )}
             </div>
-          </div>
-          <div className="flex gap-3 md:gap-4 items-center">
+
+            <div className="flex gap-3 md:gap-4 items-center">
             {/* GitHub - Black dot */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
+                  ref={githubButtonRef}
                   href="https://github.com/Zatfer17"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -579,6 +640,7 @@ function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
+                  ref={soundcloudButtonRef}
                   href="https://soundcloud.com/matteo-ferrini"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -592,6 +654,7 @@ function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
+                  ref={linkedInButtonRef}
                   href="https://www.linkedin.com/in/matteo-ferrini/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -601,19 +664,22 @@ function App() {
               </TooltipTrigger>
               <TooltipContent>LinkedIn</TooltipContent>
             </Tooltip>
+            </div>
           </div>
         </header>
-        <main className="relative z-10 flex flex-col md:flex-row md:items-start gap-8 md:gap-10 pt-8 md:pt-24 px-4 md:px-8 pb-24 min-h-[calc(100vh-140px)]">
+        <main className="relative z-10 flex h-[calc(100vh-128px)] flex-col md:flex-row md:items-start gap-8 md:gap-10 pt-8 md:pt-16 px-4 md:px-8 pb-16 overflow-hidden">
           {/* Column 1 - Gashapon */}
           <div className="flex-1 flex justify-start items-end order-1 md:pb-6">
             <img 
               ref={gashaponRef}
               src={gashaponImage} 
               alt="Gashapon machine" 
-              className={`w-48 md:max-w-md h-auto cursor-pointer transition-transform duration-200 ${
+              className={`h-auto cursor-pointer transition-transform duration-200 ${
                 isStretching ? 'scale-y-110' : 'scale-y-100'
               } ${availableElements.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{
+                width: `${GASHAPON_WIDTH}px`,
+                maxWidth: `min(100%, ${GASHAPON_MAX_WIDTH}px)`,
                 marginLeft: `${GASHAPON_OFFSET_X}px`,
                 transform: `translateY(${GASHAPON_OFFSET_Y}px)`,
               }}
@@ -635,7 +701,7 @@ function App() {
                 <CardContent className="p-4 md:p-6">
                   {/* Row 1 - Title, Link Icon and Image */}
                   <div className="mb-3">
-                    <div className="relative pr-12">
+                    <div className="relative">
                       <div
                         ref={titleRef}
                         className="relative overflow-hidden"
@@ -660,20 +726,6 @@ function App() {
                           </span>
                         ))}
                       </div>
-                      <a
-                        href={currentElement.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute top-2 right-0 transition-colors"
-                        style={{ color: hexToRgba(siteConfig.theme.fontColor, 0.72) }}
-                      >
-                        <Link
-                          style={{
-                            width: `${siteConfig.content.linkIconSize}px`,
-                            height: `${siteConfig.content.linkIconSize}px`,
-                          }}
-                        />
-                      </a>
                     </div>
                   </div>
                   {/* Row 2 - Description */}
@@ -708,16 +760,43 @@ function App() {
           </div>
         </main>
 
-        <p
-          className="fixed bottom-4 left-4 md:left-8 z-10 tracking-wide pointer-events-none"
-          style={{
-            color: siteConfig.theme.fontColor,
-            fontSize: `${siteConfig.typography.footerSize}px`,
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          }}
-        >
-          collected capsules <span className="font-bold">{balls.length}</span>/16
-        </p>
+        <div className="fixed bottom-3 left-4 right-4 md:left-8 md:right-8 z-10 flex items-center justify-between gap-3">
+          <p
+            className="tracking-wide"
+            style={{
+              color: siteConfig.theme.fontColor,
+              fontSize: `${siteConfig.typography.footerSize}px`,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            }}
+          >
+            collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/16
+          </p>
+
+          <div ref={footerDotsRef} className="flex items-center gap-2">
+            {Array.from({ length: elementsData.length }).map((_, index) => {
+              const capsuleId = index + 1
+              const capsule = openedCapsules[capsuleId]
+
+              if (!capsule) {
+                return <span key={`empty-${capsuleId}`} className="w-6 h-6 inline-block" />
+              }
+
+              return (
+                <button
+                  key={`capsule-${capsuleId}`}
+                  type="button"
+                  aria-label={`Open capsule ${capsuleId}`}
+                  onClick={() => activateCapsule(capsule)}
+                  className="w-6 h-6 rounded-full hover:opacity-80 transition-opacity"
+                  style={{
+                    background: capsule.color,
+                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14)',
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   )

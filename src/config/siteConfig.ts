@@ -23,14 +23,16 @@ export const siteConfig = {
 
   layout: {
     gashaponOffsetX: 160,
-    gashaponOffsetY: 80,
+    gashaponOffsetY: 0,
+    gashaponWidth: 300,
+    gashaponMaxWidth: 600,
     footerReservedHeight: 64,
   },
 
   balls: {
     size: {
-      min: 56,
-      max: 80,
+      min: 60,
+      max: 120,
     },
     speed: {
       spawnMin: 38,
@@ -41,21 +43,31 @@ export const siteConfig = {
       driftY: 0.03,
     },
     colors: [
-      [255, 91, 158],
-      [74, 144, 255],
-      [37, 214, 174],
-      [255, 109, 65],
-      [176, 120, 255],
-      [255, 206, 74],
+      '#6b7280',
+      '#ef4444',
+      '#f97316',
+      '#f59e0b',
+      '#eab308',
+      '#84cc16',
+      '#22c55e',
+      '#10b981',
+      '#14b8a6',
+      '#06b6d4',
+      '#0ea5e9',
+      '#3b82f6',
+      '#6366f1',
+      '#8b5cf6',
+      '#a855f7',
+      '#ec4899',
     ],
   },
 
   colors: {
     resetWidget: {
-      trackBackground: 'rgba(255,255,255,0.12)',
-      trackBorder: 'rgba(255,255,255,0.35)',
+      trackBackground: '#6b7280',
+      trackBorder: '#6b7280',
       knob: '#ffffff',
-      label: 'rgba(255,255,255,0.8)',
+      label: '#f3f4f6',
     },
     topButtons: {
       github: '#6b7280',
