@@ -295,7 +295,7 @@ function App() {
     const regionX = titleRect.left - pageRect.left
     const regionY = titleRect.top - pageRect.top
     const regionW = titleRect.width
-    const maxLines = Math.floor(titleRect.height / titleLineHeight)
+    const maxLines = isMobileLayout ? 999 : Math.floor(titleRect.height / titleLineHeight)
 
     const lines: PositionedLine[] = []
     let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -338,7 +338,7 @@ function App() {
     }
 
     return lines
-  }, [floatingBall, preparedTitle, titleLineHeight, titleRect])
+  }, [floatingBall, isMobileLayout, preparedTitle, titleLineHeight, titleRect])
 
   const descriptionLines = useMemo(() => {
     if (!preparedDescription || !descriptionRect || !pageRef.current) return [] as PositionedLine[]
@@ -347,7 +347,7 @@ function App() {
     const regionX = descriptionRect.left - pageRect.left
     const regionY = descriptionRect.top - pageRect.top
     const regionW = descriptionRect.width
-    const maxLines = Math.floor(descriptionRect.height / descriptionLineHeight)
+    const maxLines = isMobileLayout ? 999 : Math.floor(descriptionRect.height / descriptionLineHeight)
 
     const lines: PositionedLine[] = []
     let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -390,7 +390,14 @@ function App() {
     }
 
     return lines
-  }, [descriptionLineHeight, floatingBall, preparedDescription, descriptionRect])
+  }, [descriptionLineHeight, floatingBall, isMobileLayout, preparedDescription, descriptionRect])
+
+  const mobileTitleHeight = isMobileLayout
+    ? Math.max(Math.max(112, titleLineHeight * 2 + 12), titleLines.length * titleLineHeight + 16)
+    : siteConfig.content.titleMinHeight
+  const mobileDescriptionHeight = isMobileLayout
+    ? Math.max(Math.max(210, descriptionLineHeight * 6), descriptionLines.length * descriptionLineHeight + 20)
+    : siteConfig.content.bodyMinHeight
 
   useEffect(() => {
     setAvailableElements([...elementsData])
@@ -716,84 +723,57 @@ function App() {
                   {/* Row 1 - Title, Link Icon and Image */}
                   <div className="mb-3">
                     <div className="relative">
-                      {isMobileLayout ? (
-                        <h2
-                          className="font-black leading-[1.05] break-words"
-                          style={{
-                            color: siteConfig.theme.fontColor,
-                            fontFamily: EDITORIAL_FONT_FAMILY,
-                            fontSize: `${titleFontSize}px`,
-                            letterSpacing: '-0.02em',
-                          }}
-                        >
-                          {currentElement.title.toUpperCase()}
-                        </h2>
-                      ) : (
-                        <div
-                          ref={titleRef}
-                          className="relative w-full overflow-hidden"
-                          style={{ minHeight: `${siteConfig.content.titleMinHeight}px` }}
-                        >
-                          {titleLines.map((line, index) => (
-                            <span
-                              key={`title-${line.y}-${index}`}
-                              className="absolute font-black"
-                              style={{
-                                color: siteConfig.theme.fontColor,
-                                left: `${line.x}px`,
-                                top: `${line.y}px`,
-                                lineHeight: `${titleLineHeight}px`,
-                                whiteSpace: 'pre',
-                                fontFamily: EDITORIAL_FONT_FAMILY,
-                                fontSize: `${titleFontSize}px`,
-                                letterSpacing: '-0.02em',
-                              }}
-                            >
-                              {line.text}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Row 2 - Description */}
-                  <div className="mt-2 pt-3">
-                    {isMobileLayout ? (
-                      <p
-                        className="rounded-lg leading-[1.5] break-words"
-                        style={{
-                          color: siteConfig.theme.fontColor,
-                          fontFamily: EDITORIAL_FONT_FAMILY,
-                          fontSize: `${bodyFontSize}px`,
-                        }}
-                      >
-                        {currentElement.description}
-                      </p>
-                    ) : (
                       <div
-                        ref={descriptionRef}
-                        className="relative overflow-hidden rounded-lg"
-                        style={{ minHeight: `${siteConfig.content.bodyMinHeight}px` }}
+                        ref={titleRef}
+                        className="relative w-full overflow-hidden"
+                        style={{ minHeight: `${mobileTitleHeight}px` }}
                       >
-                        {descriptionLines.map((line, index) => (
+                        {titleLines.map((line, index) => (
                           <span
-                            key={`${line.y}-${index}`}
-                            className="absolute"
+                            key={`title-${line.y}-${index}`}
+                            className="absolute font-black"
                             style={{
                               color: siteConfig.theme.fontColor,
                               left: `${line.x}px`,
                               top: `${line.y}px`,
-                              lineHeight: `${descriptionLineHeight}px`,
+                              lineHeight: `${titleLineHeight}px`,
                               whiteSpace: 'pre',
                               fontFamily: EDITORIAL_FONT_FAMILY,
-                              fontSize: `${bodyFontSize}px`,
+                              fontSize: `${titleFontSize}px`,
+                              letterSpacing: '-0.02em',
                             }}
                           >
                             {line.text}
                           </span>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  </div>
+                  {/* Row 2 - Description */}
+                  <div className="mt-2 pt-3">
+                    <div
+                      ref={descriptionRef}
+                      className="relative overflow-hidden rounded-lg"
+                      style={{ minHeight: `${mobileDescriptionHeight}px` }}
+                    >
+                      {descriptionLines.map((line, index) => (
+                        <span
+                          key={`${line.y}-${index}`}
+                          className="absolute"
+                          style={{
+                            color: siteConfig.theme.fontColor,
+                            left: `${line.x}px`,
+                            top: `${line.y}px`,
+                            lineHeight: `${descriptionLineHeight}px`,
+                            whiteSpace: 'pre',
+                            fontFamily: EDITORIAL_FONT_FAMILY,
+                            fontSize: `${bodyFontSize}px`,
+                          }}
+                        >
+                          {line.text}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
