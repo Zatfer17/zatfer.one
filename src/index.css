@@ -114,6 +114,13 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    margin: 0;
+    background: #000;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

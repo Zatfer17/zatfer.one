@@ -56,18 +56,9 @@ type ObstacleRect = {
 
 const FOOTER_HEIGHT = siteConfig.layout.footerReservedHeight
 const EDITORIAL_FONT_FAMILY = '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif'
-const BASE_FONT_SIZE = siteConfig.content.bodySize
-const TITLE_FONT_SIZE = siteConfig.content.titleSize
-const TITLE_LINE_HEIGHT = Math.round(TITLE_FONT_SIZE * 1.05)
-const DESCRIPTION_LINE_HEIGHT = Math.round(BASE_FONT_SIZE * 1.5)
-const TITLE_FONT = `700 ${TITLE_FONT_SIZE}px ${EDITORIAL_FONT_FAMILY}`
-const DESCRIPTION_FONT = `400 ${BASE_FONT_SIZE}px ${EDITORIAL_FONT_FAMILY}`
+const TEXT_LAYOUT_SAFETY_BUFFER = 20
 const MIN_FLOAT_SPEED = siteConfig.balls.speed.floatMin
 const MAX_FLOAT_SPEED = siteConfig.balls.speed.floatMax
-const GASHAPON_OFFSET_X = siteConfig.layout.gashaponOffsetX
-const GASHAPON_OFFSET_Y = siteConfig.layout.gashaponOffsetY
-const GASHAPON_WIDTH = siteConfig.layout.gashaponWidth
-const GASHAPON_MAX_WIDTH = siteConfig.layout.gashaponMaxWidth
 const ORB_COLORS = siteConfig.balls.colors
 
 function clamp(value: number, min: number, max: number): number {
@@ -144,18 +135,19 @@ function resolveBallRectCollision(ball: Ball, rect: ObstacleRect): void {
   }
 }
 
+function rectsOverlap(a: ObstacleRect, b: ObstacleRect): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+}
+
 function App() {
   const [isStretching, setIsStretching] = useState(false)
   const [availableElements, setAvailableElements] = useState<Element[]>([])
   const [currentElement, setCurrentElement] = useState<Element | null>(null)
-  const [leverPosition, setLeverPosition] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
   const [floatingBall, setFloatingBall] = useState<Ball | null>(null)
   const [openedCapsules, setOpenedCapsules] = useState<Record<number, OpenedCapsule>>({})
   const [titleRect, setTitleRect] = useState<DOMRect | null>(null)
   const [descriptionRect, setDescriptionRect] = useState<DOMRect | null>(null)
-  const leverRef = useRef<HTMLDivElement>(null)
-  const trackRef = useRef<HTMLDivElement>(null)
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const pageRef = useRef<HTMLDivElement>(null)
   const gashaponRef = useRef<HTMLImageElement>(null)
   const headerTitleRef = useRef<HTMLHeadingElement>(null)
@@ -167,14 +159,89 @@ function App() {
   const descriptionRef = useRef<HTMLDivElement>(null)
   const floatingBallRef = useRef<Ball | null>(null)
 
+  const isMobileLayout = viewportWidth < 768
+  const titleFontSize = isMobileLayout
+    ? clamp(Math.round(viewportWidth * 0.14), 44, 64)
+    : siteConfig.content.titleSize
+  const bodyFontSize = isMobileLayout
+    ? clamp(Math.round(viewportWidth * 0.05), 17, 22)
+    : siteConfig.content.bodySize
+  const titleLineHeight = Math.round(titleFontSize * 1.05)
+  const descriptionLineHeight = Math.round(bodyFontSize * 1.5)
+  const titleFont = `700 ${titleFontSize}px ${EDITORIAL_FONT_FAMILY}`
+  const descriptionFont = `400 ${bodyFontSize}px ${EDITORIAL_FONT_FAMILY}`
+  const headerFontSize = isMobileLayout
+    ? clamp(Math.round(viewportWidth * 0.11), 34, 42)
+    : siteConfig.typography.headerSize
+  const footerFontSize = isMobileLayout ? 14 : siteConfig.typography.footerSize
+  const gashaponWidth = isMobileLayout
+    ? clamp(Math.round(viewportWidth * 0.68), 220, 300)
+    : siteConfig.layout.gashaponWidth
+  const gashaponMaxWidth = isMobileLayout
+    ? clamp(Math.round(viewportWidth * 0.8), 280, 380)
+    : siteConfig.layout.gashaponMaxWidth
+  const gashaponOffsetX = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetX
+  const gashaponOffsetY = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetY
+  const ballSpawnMargin = isMobileLayout ? 48 : 96
+  const socialButtonColors = siteConfig.buttons.colors
+  const githubButtonColor = socialButtonColors[0] ?? '#6b7280'
+  const soundcloudButtonColor = socialButtonColors[1] ?? '#fb923c'
+  const linkedInButtonColor = socialButtonColors[2] ?? '#60a5fa'
+
+  const getSafeSpawnPosition = (radius: number) => {
+    if (!pageRef.current) return null
+    const pageRect = pageRef.current.getBoundingClientRect()
+    const safeMargin = ballSpawnMargin
+    const minX = safeMargin
+    const maxX = Math.max(safeMargin + 1, pageRect.width - safeMargin)
+    const minY = safeMargin
+    const maxY = Math.max(safeMargin + 1, pageRect.height - FOOTER_HEIGHT - safeMargin)
+
+    const gashaponRect = gashaponRef.current?.getBoundingClientRect()
+    const blocked = gashaponRect
+      ? {
+          left: gashaponRect.left - pageRect.left - 16,
+          top: gashaponRect.top - pageRect.top - 16,
+          right: gashaponRect.right - pageRect.left + 16,
+          bottom: gashaponRect.bottom - pageRect.top + 16,
+        }
+      : null
+
+    for (let i = 0; i < 28; i++) {
+      const candidateX = randomBetween(minX, maxX)
+      const candidateY = randomBetween(minY, maxY)
+      if (!blocked) return { x: candidateX, y: candidateY }
+      const ballRect: ObstacleRect = {
+        left: candidateX - radius,
+        top: candidateY - radius,
+        right: candidateX + radius,
+        bottom: candidateY + radius,
+      }
+      if (!rectsOverlap(ballRect, blocked)) {
+        return { x: candidateX, y: candidateY }
+      }
+    }
+
+    return {
+      x: randomBetween(minX, maxX),
+      y: Math.min(maxY, Math.max(minY, pageRect.height * 0.78)),
+    }
+  }
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   useEffect(() => {
     floatingBallRef.current = floatingBall
   }, [floatingBall])
 
   const preparedTitle = useMemo(() => {
     if (!currentElement?.title) return null
-    return prepareWithSegments(currentElement.title.toUpperCase(), TITLE_FONT)
-  }, [currentElement?.title])
+    return prepareWithSegments(currentElement.title.toUpperCase(), titleFont)
+  }, [currentElement?.title, titleFont])
 
   const expandedDescription = useMemo(() => {
     if (!currentElement?.description) return ''
@@ -185,8 +252,8 @@ function App() {
 
   const preparedDescription = useMemo(() => {
     if (!expandedDescription) return null
-    return prepareWithSegments(expandedDescription, DESCRIPTION_FONT)
-  }, [expandedDescription])
+    return prepareWithSegments(expandedDescription, descriptionFont)
+  }, [descriptionFont, expandedDescription])
 
   const toggleFloatingPause = () => {
     setFloatingBall(prev => {
@@ -207,7 +274,7 @@ function App() {
     const regionX = titleRect.left - pageRect.left
     const regionY = titleRect.top - pageRect.top
     const regionW = titleRect.width
-    const maxLines = Math.floor(titleRect.height / TITLE_LINE_HEIGHT)
+    const maxLines = Math.floor(titleRect.height / titleLineHeight)
 
     const lines: PositionedLine[] = []
     let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -215,7 +282,7 @@ function App() {
 
     while (lines.length < maxLines) {
       const bandTop = regionY + lineTop
-      const bandBottom = bandTop + TITLE_LINE_HEIGHT
+      const bandBottom = bandTop + titleLineHeight
       const blocked: Interval[] = []
 
       const activeBalls = floatingBall ? [floatingBall] : []
@@ -231,7 +298,7 @@ function App() {
 
       const slots = carveTextLineSlots({ left: 0, right: regionW }, blocked)
       if (slots.length === 0) {
-        lineTop += TITLE_LINE_HEIGHT
+        lineTop += titleLineHeight
         continue
       }
 
@@ -241,15 +308,16 @@ function App() {
         return slotWidth > bestWidth ? slot : best
       })
 
-      const line = layoutNextLine(preparedTitle, cursor, bestSlot.right - bestSlot.left)
+      const availableWidth = Math.max(24, bestSlot.right - bestSlot.left - TEXT_LAYOUT_SAFETY_BUFFER)
+      const line = layoutNextLine(preparedTitle, cursor, availableWidth)
       if (line === null) break
       lines.push({ text: line.text, x: bestSlot.left, y: lineTop })
       cursor = line.end
-      lineTop += TITLE_LINE_HEIGHT
+      lineTop += titleLineHeight
     }
 
     return lines
-  }, [floatingBall, preparedTitle, titleRect])
+  }, [floatingBall, preparedTitle, titleLineHeight, titleRect])
 
   const descriptionLines = useMemo(() => {
     if (!preparedDescription || !descriptionRect || !pageRef.current) return [] as PositionedLine[]
@@ -258,7 +326,7 @@ function App() {
     const regionX = descriptionRect.left - pageRect.left
     const regionY = descriptionRect.top - pageRect.top
     const regionW = descriptionRect.width
-    const maxLines = Math.floor(descriptionRect.height / DESCRIPTION_LINE_HEIGHT)
+    const maxLines = Math.floor(descriptionRect.height / descriptionLineHeight)
 
     const lines: PositionedLine[] = []
     let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -266,7 +334,7 @@ function App() {
 
     while (lines.length < maxLines) {
       const bandTop = regionY + lineTop
-      const bandBottom = bandTop + DESCRIPTION_LINE_HEIGHT
+      const bandBottom = bandTop + descriptionLineHeight
       const blocked: Interval[] = []
 
       const activeBalls = floatingBall ? [floatingBall] : []
@@ -282,7 +350,7 @@ function App() {
 
       const slots = carveTextLineSlots({ left: 0, right: regionW }, blocked)
       if (slots.length === 0) {
-        lineTop += DESCRIPTION_LINE_HEIGHT
+        lineTop += descriptionLineHeight
         continue
       }
 
@@ -292,15 +360,16 @@ function App() {
         return slotWidth > bestWidth ? slot : best
       })
 
-      const line = layoutNextLine(preparedDescription, cursor, bestSlot.right - bestSlot.left)
+      const availableWidth = Math.max(24, bestSlot.right - bestSlot.left - TEXT_LAYOUT_SAFETY_BUFFER)
+      const line = layoutNextLine(preparedDescription, cursor, availableWidth)
       if (line === null) break
       lines.push({ text: line.text, x: bestSlot.left, y: lineTop })
       cursor = line.end
-      lineTop += DESCRIPTION_LINE_HEIGHT
+      lineTop += descriptionLineHeight
     }
 
     return lines
-  }, [floatingBall, preparedDescription, descriptionRect])
+  }, [descriptionLineHeight, floatingBall, preparedDescription, descriptionRect])
 
   useEffect(() => {
     setAvailableElements([...elementsData])
@@ -345,7 +414,6 @@ function App() {
       const obstacleElements = [
         gashaponRef.current,
         headerTitleRef.current,
-        trackRef.current,
         githubButtonRef.current,
         soundcloudButtonRef.current,
         linkedInButtonRef.current,
@@ -442,12 +510,9 @@ function App() {
     // Display in middle column
     setCurrentElement(drawnElement)
 
-    if (!pageRef.current) return
-    const pageRect = pageRef.current.getBoundingClientRect()
-    const safeMargin = 96
-    const spawnX = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.width - safeMargin))
-    const spawnY = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.height - FOOTER_HEIGHT - safeMargin))
     const r = randomBetween(siteConfig.balls.size.min, siteConfig.balls.size.max)
+    const spawn = getSafeSpawnPosition(r)
+    if (!spawn) return
     const color = ORB_COLORS[Math.floor(Math.random() * ORB_COLORS.length)]!
     const angle = Math.random() * Math.PI * 2
     const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
@@ -464,8 +529,8 @@ function App() {
     setFloatingBall({
       id: Date.now() + Math.random(),
       element: drawnElement,
-      x: spawnX,
-      y: spawnY,
+      x: spawn.x,
+      y: spawn.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       r,
@@ -476,21 +541,17 @@ function App() {
 
   const activateCapsule = (capsule: OpenedCapsule) => {
     setCurrentElement(capsule.element)
-    if (!pageRef.current) return
-
-    const pageRect = pageRef.current.getBoundingClientRect()
-    const safeMargin = 96
-    const spawnX = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.width - safeMargin))
-    const spawnY = randomBetween(safeMargin, Math.max(safeMargin + 1, pageRect.height - FOOTER_HEIGHT - safeMargin))
     const r = capsule.radius
+    const spawn = getSafeSpawnPosition(r)
+    if (!spawn) return
     const angle = Math.random() * Math.PI * 2
     const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
 
     setFloatingBall({
       id: Date.now() + Math.random(),
       element: capsule.element,
-      x: spawnX,
-      y: spawnY,
+      x: spawn.x,
+      y: spawn.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       r,
@@ -499,53 +560,14 @@ function App() {
     })
   }
 
-  const handleReset = () => {
-    setAvailableElements([...elementsData])
-    setCurrentElement(null)
-    setFloatingBall(null)
-    setOpenedCapsules({})
-  }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    e.preventDefault()
-  }
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || !trackRef.current) return
-    
-    const track = trackRef.current.getBoundingClientRect()
-    const newPosition = ((track.right - e.clientX) / track.width) * 100
-    setLeverPosition(Math.max(0, Math.min(100, newPosition)))
-  }
-
-  const handleMouseUp = () => {
-    if (isDragging) {
-      if (leverPosition > 80) {
-        handleReset()
-      }
-      setLeverPosition(0)
-      setIsDragging(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove)
-        window.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, leverPosition])
-
   return (
     <TooltipProvider>
       <div
         ref={pageRef}
-        className="h-screen relative overflow-hidden"
+        className={`relative ${isMobileLayout ? 'overflow-visible' : 'overflow-hidden'}`}
         style={{
+          height: isMobileLayout ? 'auto' : '100dvh',
+          minHeight: '100dvh',
           background: siteConfig.theme.backgroundColor,
           color: siteConfig.theme.fontColor,
         }}
@@ -577,7 +599,7 @@ function App() {
               ref={headerTitleRef}
               className="font-bold"
               style={{
-                fontSize: `${siteConfig.typography.headerSize}px`,
+                fontSize: `${headerFontSize}px`,
                 color: siteConfig.theme.fontColor,
               }}
             >
@@ -585,43 +607,7 @@ function App() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4 md:gap-5">
-            {/* Reset Lever */}
-            <div 
-              ref={trackRef}
-              className="relative w-20 md:w-24 h-6 rounded-full cursor-pointer select-none"
-              style={{
-                background: siteConfig.colors.resetWidget.trackBackground,
-                border: `1px solid ${siteConfig.colors.resetWidget.trackBorder}`,
-              }}
-            >
-              <div 
-                ref={leverRef}
-                className={`absolute w-4 h-4 md:w-4 md:h-4 rounded-full cursor-grab active:cursor-grabbing ${
-                  isDragging ? '' : 'transition-all duration-200'
-                }`}
-                style={{
-                  background: siteConfig.colors.resetWidget.knob,
-                  right: `${4 + (leverPosition / 100) * 64}px`,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                }}
-                onMouseDown={handleMouseDown}
-              />
-              {leverPosition > 80 && (
-                <span
-                  className="absolute inset-0 flex items-center justify-center font-bold"
-                  style={{
-                    color: siteConfig.colors.resetWidget.label,
-                    fontSize: `${siteConfig.typography.resetLabelSize}px`,
-                  }}
-                >
-                  Reset
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-3 md:gap-4 items-center">
+          <div className="flex items-center gap-3 md:gap-4">
             {/* GitHub - Black dot */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -630,8 +616,11 @@ function App() {
                   href="https://github.com/Zatfer17"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-70 transition-opacity"
-                  style={{ background: siteConfig.colors.topButtons.github }}
+                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
+                  style={{
+                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${githubButtonColor}`,
+                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
+                  }}
                 />
               </TooltipTrigger>
               <TooltipContent>GitHub</TooltipContent>
@@ -644,8 +633,11 @@ function App() {
                   href="https://soundcloud.com/matteo-ferrini"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-70 transition-opacity"
-                  style={{ background: siteConfig.colors.topButtons.soundcloud }}
+                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
+                  style={{
+                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${soundcloudButtonColor}`,
+                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
+                  }}
                 />
               </TooltipTrigger>
               <TooltipContent>SoundCloud</TooltipContent>
@@ -658,18 +650,20 @@ function App() {
                   href="https://www.linkedin.com/in/matteo-ferrini/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-70 transition-opacity"
-                  style={{ background: siteConfig.colors.topButtons.linkedIn }}
+                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
+                  style={{
+                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${linkedInButtonColor}`,
+                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
+                  }}
                 />
               </TooltipTrigger>
               <TooltipContent>LinkedIn</TooltipContent>
             </Tooltip>
-            </div>
           </div>
         </header>
-        <main className="relative z-10 flex h-[calc(100vh-128px)] flex-col md:flex-row md:items-start gap-8 md:gap-10 pt-8 md:pt-16 px-4 md:px-8 pb-16 overflow-hidden">
+        <main className="relative z-10 flex min-h-[calc(100dvh-128px)] flex-col gap-6 px-4 pt-4 pb-10 md:h-[calc(100dvh-128px)] md:flex-row md:items-start md:gap-10 md:px-8 md:pt-16 md:pb-16 overflow-visible md:overflow-hidden">
           {/* Column 1 - Gashapon */}
-          <div className="flex-1 flex justify-start items-end order-1 md:pb-6">
+          <div className="order-1 flex flex-1 items-end justify-center md:justify-start md:pb-6">
             <img 
               ref={gashaponRef}
               src={gashaponImage} 
@@ -678,24 +672,24 @@ function App() {
                 isStretching ? 'scale-y-110' : 'scale-y-100'
               } ${availableElements.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{
-                width: `${GASHAPON_WIDTH}px`,
-                maxWidth: `min(100%, ${GASHAPON_MAX_WIDTH}px)`,
-                marginLeft: `${GASHAPON_OFFSET_X}px`,
-                transform: `translateY(${GASHAPON_OFFSET_Y}px)`,
+                width: `${gashaponWidth}px`,
+                maxWidth: `min(100%, ${gashaponMaxWidth}px)`,
+                marginLeft: `${gashaponOffsetX}px`,
+                transform: `translateY(${gashaponOffsetY}px)`,
               }}
               onClick={handleClick}
             />
           </div>
 
           {/* Column 2 - Current Element Display */}
-          <div className="flex-1 flex justify-center px-0 md:px-2 order-2">
+          <div className="order-2 flex min-w-0 flex-1 justify-center px-0 md:px-2">
             {currentElement && (
               <Card
-                className="animate-fade-in w-full border-0 bg-transparent shadow-none rounded-none"
+                className="animate-fade-in w-full min-w-0 rounded-none border-0 bg-transparent shadow-none"
                 style={{
-                  width: `min(${Math.round(siteConfig.content.componentWidthRatio * 100)}vw, ${siteConfig.content.componentMaxWidth}px)`,
+                  width: '100%',
                   maxWidth: `${siteConfig.content.componentMaxWidth}px`,
-                  minWidth: `min(100%, ${siteConfig.content.componentMinWidth}px)`,
+                  minWidth: '0',
                 }}
               >
                 <CardContent className="p-4 md:p-6">
@@ -704,8 +698,12 @@ function App() {
                     <div className="relative">
                       <div
                         ref={titleRef}
-                        className="relative overflow-hidden"
-                        style={{ minHeight: `${siteConfig.content.titleMinHeight}px` }}
+                        className="relative w-full overflow-hidden"
+                        style={{
+                          minHeight: isMobileLayout
+                            ? `${Math.max(112, titleLineHeight * 2 + 12)}px`
+                            : `${siteConfig.content.titleMinHeight}px`,
+                        }}
                       >
                         {titleLines.map((line, index) => (
                           <span
@@ -715,10 +713,10 @@ function App() {
                               color: siteConfig.theme.fontColor,
                               left: `${line.x}px`,
                               top: `${line.y}px`,
-                              lineHeight: `${TITLE_LINE_HEIGHT}px`,
+                              lineHeight: `${titleLineHeight}px`,
                               whiteSpace: 'pre',
                               fontFamily: EDITORIAL_FONT_FAMILY,
-                              fontSize: `${TITLE_FONT_SIZE}px`,
+                              fontSize: `${titleFontSize}px`,
                               letterSpacing: '-0.02em',
                             }}
                           >
@@ -733,7 +731,11 @@ function App() {
                     <div
                       ref={descriptionRef}
                       className="relative overflow-hidden rounded-lg"
-                      style={{ minHeight: `${siteConfig.content.bodyMinHeight}px` }}
+                      style={{
+                        minHeight: isMobileLayout
+                          ? `${Math.max(210, descriptionLineHeight * 6)}px`
+                          : `${siteConfig.content.bodyMinHeight}px`,
+                      }}
                     >
                       {descriptionLines.map((line, index) => (
                         <span
@@ -743,10 +745,10 @@ function App() {
                             color: siteConfig.theme.fontColor,
                             left: `${line.x}px`,
                             top: `${line.y}px`,
-                            lineHeight: `${DESCRIPTION_LINE_HEIGHT}px`,
+                            lineHeight: `${descriptionLineHeight}px`,
                             whiteSpace: 'pre',
                             fontFamily: EDITORIAL_FONT_FAMILY,
-                            fontSize: `${BASE_FONT_SIZE}px`,
+                            fontSize: `${bodyFontSize}px`,
                           }}
                         >
                           {line.text}
@@ -760,25 +762,27 @@ function App() {
           </div>
         </main>
 
-        <div className="fixed bottom-3 left-4 right-4 md:left-8 md:right-8 z-10 flex items-center justify-between gap-3">
+        <div className="relative z-10 mx-4 pb-4 flex items-center justify-between gap-2 md:fixed md:bottom-3 md:left-8 md:right-8 md:mx-0 md:pb-0 md:gap-3">
           <p
             className="tracking-wide"
             style={{
               color: siteConfig.theme.fontColor,
-              fontSize: `${siteConfig.typography.footerSize}px`,
+              fontSize: `${footerFontSize}px`,
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
             }}
           >
-            collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/16
+            {isMobileLayout
+              ? <><span className="font-bold">{Object.keys(openedCapsules).length}</span>/16</>
+              : <>collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/16</>}
           </p>
 
-          <div ref={footerDotsRef} className="flex items-center gap-2">
+          <div ref={footerDotsRef} className="flex max-w-[68vw] items-center gap-1 overflow-x-auto md:max-w-none md:gap-2 md:overflow-visible">
             {Array.from({ length: elementsData.length }).map((_, index) => {
               const capsuleId = index + 1
               const capsule = openedCapsules[capsuleId]
 
               if (!capsule) {
-                return <span key={`empty-${capsuleId}`} className="w-6 h-6 inline-block" />
+                return <span key={`empty-${capsuleId}`} className="inline-block h-4 w-4 md:h-6 md:w-6" />
               }
 
               return (
@@ -787,9 +791,9 @@ function App() {
                   type="button"
                   aria-label={`Open capsule ${capsuleId}`}
                   onClick={() => activateCapsule(capsule)}
-                  className="w-6 h-6 rounded-full hover:opacity-80 transition-opacity"
+                  className="h-4 w-4 rounded-full transition-opacity hover:opacity-80 md:h-6 md:w-6"
                   style={{
-                    background: capsule.color,
+                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${capsule.color}`,
                     boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14)',
                   }}
                 />

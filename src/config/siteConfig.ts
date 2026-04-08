@@ -43,36 +43,15 @@ export const siteConfig = {
       driftY: 0.03,
     },
     colors: [
-      '#6b7280',
       '#ef4444',
-      '#f97316',
-      '#f59e0b',
-      '#eab308',
-      '#84cc16',
-      '#22c55e',
-      '#10b981',
-      '#14b8a6',
-      '#06b6d4',
-      '#0ea5e9',
-      '#3b82f6',
-      '#6366f1',
-      '#8b5cf6',
-      '#a855f7',
-      '#ec4899',
     ],
   },
 
-  colors: {
-    resetWidget: {
-      trackBackground: '#6b7280',
-      trackBorder: '#6b7280',
-      knob: '#ffffff',
-      label: '#f3f4f6',
-    },
-    topButtons: {
-      github: '#6b7280',
-      soundcloud: '#fb923c',
-      linkedIn: '#60a5fa',
-    },
+  buttons: {
+    colors: [
+      '#6b7280',
+      '#fb923c',
+      '#60a5fa',
+    ],
   },
 } as const
