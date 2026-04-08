@@ -174,10 +174,10 @@ function App() {
     : siteConfig.typography.headerSize
   const footerFontSize = isMobileLayout ? 14 : siteConfig.typography.footerSize
   const gashaponWidth = isMobileLayout
-    ? clamp(Math.round(viewportWidth * 0.68), 220, 300)
+    ? clamp(Math.round(viewportWidth * 0.62), 200, 270)
     : siteConfig.layout.gashaponWidth
   const gashaponMaxWidth = isMobileLayout
-    ? clamp(Math.round(viewportWidth * 0.8), 280, 380)
+    ? clamp(Math.round(viewportWidth * 0.74), 250, 340)
     : siteConfig.layout.gashaponMaxWidth
   const gashaponOffsetX = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetX
   const gashaponOffsetY = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetY
@@ -191,10 +191,10 @@ function App() {
     if (!pageRef.current) return null
     const pageRect = pageRef.current.getBoundingClientRect()
     const safeMargin = ballSpawnMargin
-    const minX = safeMargin
-    const maxX = Math.max(safeMargin + 1, pageRect.width - safeMargin)
-    const minY = safeMargin
-    const maxY = Math.max(safeMargin + 1, pageRect.height - FOOTER_HEIGHT - safeMargin)
+    const minX = safeMargin + radius
+    const maxX = Math.max(minX + 1, pageRect.width - safeMargin - radius)
+    const minY = safeMargin + radius
+    const maxY = Math.max(minY + 1, pageRect.height - FOOTER_HEIGHT - safeMargin - radius)
 
     const gashaponRect = gashaponRef.current?.getBoundingClientRect()
     const blocked = gashaponRect
@@ -206,7 +206,7 @@ function App() {
         }
       : null
 
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 80; i++) {
       const candidateX = randomBetween(minX, maxX)
       const candidateY = randomBetween(minY, maxY)
       if (!blocked) return { x: candidateX, y: candidateY }
@@ -221,9 +221,27 @@ function App() {
       }
     }
 
+    if (blocked) {
+      const belowBlockedY = blocked.bottom + radius + 24
+      if (belowBlockedY <= maxY) {
+        return {
+          x: randomBetween(minX, maxX),
+          y: belowBlockedY,
+        }
+      }
+
+      const aboveBlockedY = blocked.top - radius - 24
+      if (aboveBlockedY >= minY) {
+        return {
+          x: randomBetween(minX, maxX),
+          y: aboveBlockedY,
+        }
+      }
+    }
+
     return {
       x: randomBetween(minX, maxX),
-      y: Math.min(maxY, Math.max(minY, pageRect.height * 0.78)),
+      y: clamp(pageRect.height * 0.78, minY, maxY),
     }
   }
 
@@ -380,11 +398,8 @@ function App() {
 
   useEffect(() => {
     const updateRect = () => {
-      if (titleRef.current) {
-        setTitleRect(titleRef.current.getBoundingClientRect())
-      }
-      if (!descriptionRef.current) return
-      setDescriptionRect(descriptionRef.current.getBoundingClientRect())
+      setTitleRect(titleRef.current ? titleRef.current.getBoundingClientRect() : null)
+      setDescriptionRect(descriptionRef.current ? descriptionRef.current.getBoundingClientRect() : null)
     }
 
     updateRect()
@@ -701,65 +716,84 @@ function App() {
                   {/* Row 1 - Title, Link Icon and Image */}
                   <div className="mb-3">
                     <div className="relative">
-                      <div
-                        ref={titleRef}
-                        className="relative w-full overflow-hidden"
+                      {isMobileLayout ? (
+                        <h2
+                          className="font-black leading-[1.05] break-words"
+                          style={{
+                            color: siteConfig.theme.fontColor,
+                            fontFamily: EDITORIAL_FONT_FAMILY,
+                            fontSize: `${titleFontSize}px`,
+                            letterSpacing: '-0.02em',
+                          }}
+                        >
+                          {currentElement.title.toUpperCase()}
+                        </h2>
+                      ) : (
+                        <div
+                          ref={titleRef}
+                          className="relative w-full overflow-hidden"
+                          style={{ minHeight: `${siteConfig.content.titleMinHeight}px` }}
+                        >
+                          {titleLines.map((line, index) => (
+                            <span
+                              key={`title-${line.y}-${index}`}
+                              className="absolute font-black"
+                              style={{
+                                color: siteConfig.theme.fontColor,
+                                left: `${line.x}px`,
+                                top: `${line.y}px`,
+                                lineHeight: `${titleLineHeight}px`,
+                                whiteSpace: 'pre',
+                                fontFamily: EDITORIAL_FONT_FAMILY,
+                                fontSize: `${titleFontSize}px`,
+                                letterSpacing: '-0.02em',
+                              }}
+                            >
+                              {line.text}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Row 2 - Description */}
+                  <div className="mt-2 pt-3">
+                    {isMobileLayout ? (
+                      <p
+                        className="rounded-lg leading-[1.5] break-words"
                         style={{
-                          minHeight: isMobileLayout
-                            ? `${Math.max(112, titleLineHeight * 2 + 12)}px`
-                            : `${siteConfig.content.titleMinHeight}px`,
+                          color: siteConfig.theme.fontColor,
+                          fontFamily: EDITORIAL_FONT_FAMILY,
+                          fontSize: `${bodyFontSize}px`,
                         }}
                       >
-                        {titleLines.map((line, index) => (
+                        {currentElement.description}
+                      </p>
+                    ) : (
+                      <div
+                        ref={descriptionRef}
+                        className="relative overflow-hidden rounded-lg"
+                        style={{ minHeight: `${siteConfig.content.bodyMinHeight}px` }}
+                      >
+                        {descriptionLines.map((line, index) => (
                           <span
-                            key={`title-${line.y}-${index}`}
-                            className="absolute font-black"
+                            key={`${line.y}-${index}`}
+                            className="absolute"
                             style={{
                               color: siteConfig.theme.fontColor,
                               left: `${line.x}px`,
                               top: `${line.y}px`,
-                              lineHeight: `${titleLineHeight}px`,
+                              lineHeight: `${descriptionLineHeight}px`,
                               whiteSpace: 'pre',
                               fontFamily: EDITORIAL_FONT_FAMILY,
-                              fontSize: `${titleFontSize}px`,
-                              letterSpacing: '-0.02em',
+                              fontSize: `${bodyFontSize}px`,
                             }}
                           >
                             {line.text}
                           </span>
                         ))}
                       </div>
-                    </div>
-                  </div>
-                  {/* Row 2 - Description */}
-                  <div className="mt-2 pt-3">
-                    <div
-                      ref={descriptionRef}
-                      className="relative overflow-hidden rounded-lg"
-                      style={{
-                        minHeight: isMobileLayout
-                          ? `${Math.max(210, descriptionLineHeight * 6)}px`
-                          : `${siteConfig.content.bodyMinHeight}px`,
-                      }}
-                    >
-                      {descriptionLines.map((line, index) => (
-                        <span
-                          key={`${line.y}-${index}`}
-                          className="absolute"
-                          style={{
-                            color: siteConfig.theme.fontColor,
-                            left: `${line.x}px`,
-                            top: `${line.y}px`,
-                            lineHeight: `${descriptionLineHeight}px`,
-                            whiteSpace: 'pre',
-                            fontFamily: EDITORIAL_FONT_FAMILY,
-                            fontSize: `${bodyFontSize}px`,
-                          }}
-                        >
-                          {line.text}
-                        </span>
-                      ))}
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
