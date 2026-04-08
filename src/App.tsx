@@ -15,7 +15,6 @@ interface Element {
   title: string
   description: string
   url: string
-  image: string
 }
 
 interface Ball {
@@ -245,9 +244,7 @@ function App() {
 
   const expandedDescription = useMemo(() => {
     if (!currentElement?.description) return ''
-    const base = currentElement.description.trim()
-    if (base.length >= 420) return base
-    return `${base} ${base}`
+    return currentElement.description.trim()
   }, [currentElement?.description])
 
   const preparedDescription = useMemo(() => {
@@ -255,14 +252,20 @@ function App() {
     return prepareWithSegments(expandedDescription, descriptionFont)
   }, [descriptionFont, expandedDescription])
 
-  const toggleFloatingPause = () => {
+  const handleFloatingBallClick = () => {
+    const current = floatingBallRef.current
+    if (!current) return
+
+    setCurrentElement(current.element)
+    if (current.element.url) {
+      window.open(current.element.url, '_blank', 'noopener,noreferrer')
+    }
+
     setFloatingBall(prev => {
       if (!prev) return prev
-      setCurrentElement(prev.element)
-      const nextPaused = !prev.paused
       return {
         ...prev,
-        paused: nextPaused,
+        paused: true,
       }
     })
   }
@@ -500,12 +503,14 @@ function App() {
     setIsStretching(true)
     setTimeout(() => setIsStretching(false), 200)
 
-    // Pick a random element from available elements
+    const isFirstDraw = Object.keys(openedCapsules).length === 0
+    const firstCapsuleIndex = availableElements.findIndex(element => element.id === 1)
     const randomIndex = Math.floor(Math.random() * availableElements.length)
-    const drawnElement = availableElements[randomIndex]
+    const selectedIndex = isFirstDraw && firstCapsuleIndex >= 0 ? firstCapsuleIndex : randomIndex
+    const drawnElement = availableElements[selectedIndex]
 
     // Remove the drawn element from available elements
-    setAvailableElements(prev => prev.filter((_, index) => index !== randomIndex))
+    setAvailableElements(prev => prev.filter((_, index) => index !== selectedIndex))
 
     // Display in middle column
     setCurrentElement(drawnElement)
@@ -576,8 +581,8 @@ function App() {
           <button
             key={floatingBall.id}
             type="button"
-            aria-label={`Open ${floatingBall.element.title}`}
-            onClick={toggleFloatingPause}
+            aria-label={`Open link for ${floatingBall.element.title}`}
+            onClick={handleFloatingBallClick}
             className="absolute rounded-full z-20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
             style={{
               left: `${floatingBall.x - floatingBall.r}px`,
@@ -772,8 +777,8 @@ function App() {
             }}
           >
             {isMobileLayout
-              ? <><span className="font-bold">{Object.keys(openedCapsules).length}</span>/16</>
-              : <>collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/16</>}
+              ? <><span className="font-bold">{Object.keys(openedCapsules).length}</span>/{elementsData.length}</>
+              : <>collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/{elementsData.length}</>}
           </p>
 
           <div ref={footerDotsRef} className="flex max-w-[68vw] items-center gap-1 overflow-x-auto md:max-w-none md:gap-2 md:overflow-visible">
@@ -786,17 +791,21 @@ function App() {
               }
 
               return (
-                <button
-                  key={`capsule-${capsuleId}`}
-                  type="button"
-                  aria-label={`Open capsule ${capsuleId}`}
-                  onClick={() => activateCapsule(capsule)}
-                  className="h-4 w-4 rounded-full transition-opacity hover:opacity-80 md:h-6 md:w-6"
-                  style={{
-                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${capsule.color}`,
-                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14)',
-                  }}
-                />
+                <Tooltip key={`capsule-${capsuleId}`}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Open capsule ${capsuleId}`}
+                      onClick={() => activateCapsule(capsule)}
+                      className="h-4 w-4 rounded-full transition-opacity hover:opacity-80 md:h-6 md:w-6"
+                      style={{
+                        background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${capsule.color}`,
+                        boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14)',
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{capsule.element.title}</TooltipContent>
+                </Tooltip>
               )
             })}
           </div>

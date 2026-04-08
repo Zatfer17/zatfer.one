@@ -14,10 +14,10 @@ export const siteConfig = {
     componentWidthRatio: 0.8,
     componentMaxWidth: 1000,
     componentMinWidth: 640,
-    titleMinHeight: 180,
+    titleMinHeight: 240,
     bodyMinHeight: 430,
     titleSize: 80,
-    bodySize: 24,
+    bodySize: 32,
     linkIconSize: 36,
   },
 
