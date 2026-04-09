@@ -819,7 +819,7 @@ function App() {
 
         <main className="relative z-10 flex min-h-[calc(100dvh-128px)] flex-col gap-6 px-4 pt-4 pb-10 md:h-[calc(100dvh-128px)] md:flex-row md:items-start md:gap-10 md:px-8 md:pt-16 md:pb-16 overflow-visible md:overflow-hidden">
           {/* Column 1 - Gashapon */}
-          <div className="order-1 flex flex-1 items-end justify-center md:justify-start md:pb-6">
+          <div className="order-1 flex flex-1 items-end justify-center md:justify-center md:pb-6">
             <img 
               ref={gashaponRef}
               src={gashaponImage} 
@@ -830,7 +830,7 @@ function App() {
               style={{
                 width: `${gashaponWidth}px`,
                 maxWidth: `min(100%, ${gashaponMaxWidth}px)`,
-                marginLeft: `${gashaponOffsetX}px`,
+                marginLeft: isMobileLayout ? `${gashaponOffsetX}px` : '0px',
                 transform: `translateY(${gashaponOffsetY}px)`,
               }}
               onClick={handleClick}
