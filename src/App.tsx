@@ -56,8 +56,6 @@ type ObstacleRect = {
 const FOOTER_HEIGHT = siteConfig.layout.footerReservedHeight
 const EDITORIAL_FONT_FAMILY = '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif'
 const TEXT_LAYOUT_SAFETY_BUFFER = 20
-const MIN_FLOAT_SPEED = siteConfig.balls.speed.floatMin
-const MAX_FLOAT_SPEED = siteConfig.balls.speed.floatMax
 const ORB_COLORS = siteConfig.balls.colors
 
 function clamp(value: number, min: number, max: number): number {
@@ -160,7 +158,7 @@ function App() {
 
   const isMobileLayout = viewportWidth < 768
   const titleFontSize = isMobileLayout
-    ? clamp(Math.round(viewportWidth * 0.14), 44, 64)
+    ? clamp(Math.round(viewportWidth * 0.11), 34, 52)
     : siteConfig.content.titleSize
   const bodyFontSize = isMobileLayout
     ? clamp(Math.round(viewportWidth * 0.05), 17, 22)
@@ -182,6 +180,24 @@ function App() {
   const gashaponOffsetX = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetX
   const gashaponOffsetY = isMobileLayout ? 0 : siteConfig.layout.gashaponOffsetY
   const ballSpawnMargin = isMobileLayout ? 48 : 96
+  const ballSizeMin = isMobileLayout
+    ? Math.round(siteConfig.balls.size.min * 0.45)
+    : siteConfig.balls.size.min
+  const ballSizeMax = isMobileLayout
+    ? Math.round(siteConfig.balls.size.max * 0.45)
+    : siteConfig.balls.size.max
+  const ballSpawnSpeedMin = isMobileLayout
+    ? siteConfig.balls.speed.spawnMin * 0.65
+    : siteConfig.balls.speed.spawnMin
+  const ballSpawnSpeedMax = isMobileLayout
+    ? siteConfig.balls.speed.spawnMax * 0.65
+    : siteConfig.balls.speed.spawnMax
+  const ballFloatSpeedMin = isMobileLayout
+    ? siteConfig.balls.speed.floatMin * 0.65
+    : siteConfig.balls.speed.floatMin
+  const ballFloatSpeedMax = isMobileLayout
+    ? siteConfig.balls.speed.floatMax * 0.65
+    : siteConfig.balls.speed.floatMax
   const socialButtonColors = siteConfig.buttons.colors
   const githubButtonColor = socialButtonColors[0] ?? '#6b7280'
   const soundcloudButtonColor = socialButtonColors[1] ?? '#fb923c'
@@ -475,12 +491,12 @@ function App() {
 
       const speed = Math.hypot(b.vx, b.vy)
       if (speed > 0.001) {
-        if (speed < MIN_FLOAT_SPEED) {
-          const scale = MIN_FLOAT_SPEED / speed
+        if (speed < ballFloatSpeedMin) {
+          const scale = ballFloatSpeedMin / speed
           b.vx *= scale
           b.vy *= scale
-        } else if (speed > MAX_FLOAT_SPEED) {
-          const scale = MAX_FLOAT_SPEED / speed
+        } else if (speed > ballFloatSpeedMax) {
+          const scale = ballFloatSpeedMax / speed
           b.vx *= scale
           b.vy *= scale
         }
@@ -537,12 +553,12 @@ function App() {
     // Display in middle column
     setCurrentElement(drawnElement)
 
-    const r = randomBetween(siteConfig.balls.size.min, siteConfig.balls.size.max)
+    const r = randomBetween(ballSizeMin, ballSizeMax)
     const spawn = getSafeSpawnPosition(r)
     if (!spawn) return
     const color = ORB_COLORS[Math.floor(Math.random() * ORB_COLORS.length)]!
     const angle = Math.random() * Math.PI * 2
-    const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
+    const speed = randomBetween(ballSpawnSpeedMin, ballSpawnSpeedMax)
 
     setOpenedCapsules(prev => ({
       ...prev,
@@ -572,7 +588,7 @@ function App() {
     const spawn = getSafeSpawnPosition(r)
     if (!spawn) return
     const angle = Math.random() * Math.PI * 2
-    const speed = randomBetween(siteConfig.balls.speed.spawnMin, siteConfig.balls.speed.spawnMax)
+    const speed = randomBetween(ballSpawnSpeedMin, ballSpawnSpeedMax)
 
     setFloatingBall({
       id: Date.now() + Math.random(),
