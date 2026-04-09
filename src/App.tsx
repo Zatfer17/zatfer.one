@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import gashaponImage from './assets/gashapon.png'
-import elementsData from './data/elements.json'
-import cassetteCollectionData from './data/cassettes.json'
+import projectsData from './config/projects.json'
+import cassetteCollectionData from './config/cassettes.json'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { siteConfig } from './config/siteConfig'
@@ -303,6 +303,16 @@ function App() {
     floatingBallRef.current = floatingBall
   }, [floatingBall])
 
+  useEffect(() => {
+    setFloatingBall(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        paused: isCassetteCollectionOpen,
+      }
+    })
+  }, [isCassetteCollectionOpen])
+
   const preparedTitle = useMemo(() => {
     if (!currentElement?.title) return null
     return prepareWithSegments(currentElement.title.toUpperCase(), titleFont)
@@ -448,7 +458,7 @@ function App() {
     : siteConfig.content.bodyMinHeight
 
   useEffect(() => {
-    setAvailableElements([...elementsData])
+    setAvailableElements([...projectsData])
   }, [])
 
   useEffect(() => {
@@ -610,7 +620,7 @@ function App() {
       vy: Math.sin(angle) * speed,
       r,
       color,
-      paused: false,
+      paused: isCassetteCollectionOpen,
     })
   }
 
@@ -631,7 +641,7 @@ function App() {
       vy: Math.sin(angle) * speed,
       r,
       color: capsule.color,
-      paused: false,
+      paused: isCassetteCollectionOpen,
     })
   }
 
@@ -669,7 +679,7 @@ function App() {
         )}
 
         <header className="relative z-20 px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
-          <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center">
             <h1
               ref={headerTitleRef}
               className="font-bold"
@@ -776,11 +786,11 @@ function App() {
           >
             <div className="cassette-compartment__grid" role="list" aria-label={siteConfig.cassetteCollection.title}>
               {cassetteCollection.map(cassette => (
-                <button
+                <a
                   key={cassette.id}
-                  type="button"
+                  href={`/tape/${cassette.id}`}
                   className="cassette-compartment__card"
-                  aria-label={`Open ${cassette.title} page (coming soon)`}
+                  aria-label={`Open ${cassette.title} page`}
                 >
                   <img
                     src={cassette.cover || HEADER_CASSETTE_IMAGE_URL}
@@ -801,7 +811,7 @@ function App() {
                   >
                     {cassette.title.toUpperCase()}
                   </h3>
-                </button>
+                </a>
               ))}
             </div>
           </section>
@@ -910,12 +920,12 @@ function App() {
             }}
           >
             {isMobileLayout
-              ? <><span className="font-bold">{Object.keys(openedCapsules).length}</span>/{elementsData.length}</>
-              : <>collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/{elementsData.length}</>}
+              ? <><span className="font-bold">{Object.keys(openedCapsules).length}</span>/{projectsData.length}</>
+              : <>collected capsules <span className="font-bold">{Object.keys(openedCapsules).length}</span>/{projectsData.length}</>}
           </p>
 
           <div ref={footerDotsRef} className="flex max-w-[68vw] items-center gap-1 overflow-x-auto md:max-w-none md:gap-2 md:overflow-visible">
-            {Array.from({ length: elementsData.length }).map((_, index) => {
+            {Array.from({ length: projectsData.length }).map((_, index) => {
               const capsuleId = index + 1
               const capsule = openedCapsules[capsuleId]
 
