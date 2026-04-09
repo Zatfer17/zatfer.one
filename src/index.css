@@ -128,3 +128,109 @@
     @apply bg-background text-foreground;
   }
 }
+
+.header-cassette-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.header-cassette-button:hover {
+  transform: scale(1.05);
+  opacity: 0.96;
+}
+
+.header-cassette-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.header-cassette-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 9px rgba(0, 0, 0, 0.4));
+}
+
+.cassette-compartment {
+  position: absolute;
+  z-index: 30;
+  max-height: min(32dvh, 286px);
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 10px 32px 18px;
+  box-shadow: none;
+}
+
+.cassette-compartment__grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.cassette-compartment__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: #ffffff;
+  min-width: 0;
+  flex: 0 0 auto;
+  width: 198px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cassette-compartment__cover {
+  width: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
+}
+
+.cassette-compartment__card-title {
+  margin: 0;
+  line-height: 1.18;
+  font-weight: 500;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+@media (max-width: 767px) {
+  .cassette-compartment {
+    border-radius: 14px;
+    padding: 10px;
+    max-height: min(31dvh, 240px);
+  }
+
+  .cassette-compartment__grid {
+    gap: 10px;
+  }
+
+  .cassette-compartment__cover {
+    margin-bottom: 7px;
+  }
+
+  .cassette-compartment__card {
+    width: 150px;
+  }
+
+  .cassette-compartment__card-title {
+    line-height: 1.12;
+  }
+}

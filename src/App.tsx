@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import gashaponImage from './assets/gashapon.png'
 import elementsData from './data/elements.json'
+import cassetteCollectionData from './data/cassettes.json'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { siteConfig } from './config/siteConfig'
@@ -10,10 +11,20 @@ import {
   type LayoutCursor,
 } from '@chenglou/pretext'
 
+const HEADER_CASSETTE_IMAGE_URL = 'https://intertapes.net/uploads/tapes/berlin/grid_image.webp'
+
 interface Element {
   id: number
   title: string
   description: string
+  url: string
+}
+
+interface CassetteItem {
+  id: number
+  title: string
+  description: string
+  cover: string
   url: string
 }
 
@@ -140,6 +151,7 @@ function App() {
   const [isStretching, setIsStretching] = useState(false)
   const [availableElements, setAvailableElements] = useState<Element[]>([])
   const [currentElement, setCurrentElement] = useState<Element | null>(null)
+  const [isCassetteCollectionOpen, setIsCassetteCollectionOpen] = useState(false)
   const [floatingBall, setFloatingBall] = useState<Ball | null>(null)
   const [openedCapsules, setOpenedCapsules] = useState<Record<number, OpenedCapsule>>({})
   const [titleRect, setTitleRect] = useState<DOMRect | null>(null)
@@ -202,6 +214,26 @@ function App() {
   const githubButtonColor = socialButtonColors[0] ?? '#6b7280'
   const soundcloudButtonColor = socialButtonColors[1] ?? '#fb923c'
   const linkedInButtonColor = socialButtonColors[2] ?? '#60a5fa'
+  const cassetteCollection = useMemo(() => cassetteCollectionData as CassetteItem[], [])
+  const cassetteCoverWidth = isMobileLayout
+    ? Math.round(siteConfig.cassetteCollection.coverWidth * 0.8)
+    : siteConfig.cassetteCollection.coverWidth
+  const cassetteCoverHeight = isMobileLayout
+    ? Math.round(siteConfig.cassetteCollection.coverHeight * 0.8)
+    : siteConfig.cassetteCollection.coverHeight
+  const cassetteCompartmentBottom = isMobileLayout ? 92 : 84
+  const cassetteCompartmentWidth = isMobileLayout
+    ? `min(${siteConfig.cassetteCollection.compartmentMaxWidth}px, calc(100% - 24px))`
+    : `min(${siteConfig.cassetteCollection.compartmentMaxWidth}px, 66vw)`
+  const cassetteFontSize = isMobileLayout
+    ? Math.max(18, siteConfig.cassetteCollection.fontSize - 8)
+    : siteConfig.cassetteCollection.fontSize
+  const cassetteButtonWidth = isMobileLayout
+    ? Math.round(siteConfig.cassetteCollection.headerButtonWidth * 0.9)
+    : siteConfig.cassetteCollection.headerButtonWidth
+  const cassetteButtonHeight = isMobileLayout
+    ? Math.round(siteConfig.cassetteCollection.headerButtonHeight * 0.9)
+    : siteConfig.cassetteCollection.headerButtonHeight
 
   const getSafeSpawnPosition = (radius: number) => {
     if (!pageRef.current) return null
@@ -636,8 +668,8 @@ function App() {
           />
         )}
 
-        <header className="relative z-10 px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
+        <header className="relative z-20 px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
+          <div className="flex items-center gap-3 md:gap-4">
             <h1
               ref={headerTitleRef}
               className="font-bold"
@@ -648,6 +680,30 @@ function App() {
             >
               zatfer
             </h1>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Open cassette compartment"
+                  className="header-cassette-button"
+                  onClick={() => setIsCassetteCollectionOpen(prev => !prev)}
+                  style={{
+                    width: `${cassetteButtonWidth}px`,
+                    height: `${cassetteButtonHeight}px`,
+                    marginTop: isMobileLayout ? '2px' : '3px',
+                  }}
+                >
+                  <img
+                    src={HEADER_CASSETTE_IMAGE_URL}
+                    alt="Cassette compartment"
+                    className="header-cassette-image"
+                    loading="lazy"
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Cassette compartment</TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="flex items-center gap-3 md:gap-4">
@@ -704,6 +760,53 @@ function App() {
             </Tooltip>
           </div>
         </header>
+
+        {isCassetteCollectionOpen && (
+          <section
+            className="cassette-compartment"
+            aria-label="Cassette compartment"
+            style={{
+              width: cassetteCompartmentWidth,
+              bottom: `${cassetteCompartmentBottom}px`,
+              right: isMobileLayout ? 'auto' : `${siteConfig.cassetteCollection.compartmentMarginX + 10}px`,
+              left: isMobileLayout ? '50%' : 'auto',
+              transform: isMobileLayout ? 'translateX(-50%)' : 'none',
+              background: siteConfig.cassetteCollection.compartmentBg,
+            }}
+          >
+            <div className="cassette-compartment__grid" role="list" aria-label={siteConfig.cassetteCollection.title}>
+              {cassetteCollection.map(cassette => (
+                <button
+                  key={cassette.id}
+                  type="button"
+                  className="cassette-compartment__card"
+                  aria-label={`Open ${cassette.title} page (coming soon)`}
+                >
+                  <img
+                    src={cassette.cover || HEADER_CASSETTE_IMAGE_URL}
+                    alt={cassette.title}
+                    className="cassette-compartment__cover"
+                    loading="lazy"
+                    style={{
+                      width: `${cassetteCoverWidth}px`,
+                      height: `${cassetteCoverHeight}px`,
+                    }}
+                  />
+                  <h3
+                    className="cassette-compartment__card-title"
+                    style={{
+                      color: siteConfig.cassetteCollection.fontColor,
+                      fontSize: `${Math.max(16, cassetteFontSize - 3)}px`,
+                    }}
+                  >
+                    {cassette.title.toUpperCase()}
+                  </h3>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         <main className="relative z-10 flex min-h-[calc(100dvh-128px)] flex-col gap-6 px-4 pt-4 pb-10 md:h-[calc(100dvh-128px)] md:flex-row md:items-start md:gap-10 md:px-8 md:pt-16 md:pb-16 overflow-visible md:overflow-hidden">
           {/* Column 1 - Gashapon */}
           <div className="order-1 flex flex-1 items-end justify-center md:justify-start md:pb-6">

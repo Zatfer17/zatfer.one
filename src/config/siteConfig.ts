@@ -54,4 +54,19 @@ export const siteConfig = {
       '#60a5fa',
     ],
   },
+
+  cassetteCollection: {
+    title: 'Cassette compartment',
+    compartmentBg: '#333333',
+    compartmentMaxWidth: 980,
+    compartmentMarginX: 64,
+    compartmentOffsetTop: 116,
+    columns: 3,
+    coverWidth: 150,
+    coverHeight: 188,
+    fontColor: '#ffffff',
+    fontSize: 24,
+    headerButtonWidth: 152,
+    headerButtonHeight: 78,
+  },
 } as const
