@@ -7,18 +7,15 @@ export const siteConfig = {
   typography: {
     headerSize: 48,
     footerSize: 16,
-    resetLabelSize: 12,
   },
 
   content: {
     componentWidthRatio: 0.8,
     componentMaxWidth: 1000,
-    componentMinWidth: 640,
     titleMinHeight: 240,
     bodyMinHeight: 430,
     titleSize: 80,
     bodySize: 32,
-    linkIconSize: 36,
   },
 
   layout: {
@@ -57,11 +54,9 @@ export const siteConfig = {
 
   cassetteCollection: {
     title: 'Cassette compartment',
-    compartmentBg: '#333333',
+    compartmentBg: '#761FFF',
     compartmentMaxWidth: 980,
     compartmentMarginX: 64,
-    compartmentOffsetTop: 116,
-    columns: 3,
     coverWidth: 150,
     coverHeight: 188,
     fontColor: '#ffffff',

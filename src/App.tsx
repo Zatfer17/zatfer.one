@@ -4,6 +4,7 @@ import projectsData from './config/projects.json'
 import cassetteCollectionData from './config/cassettes.json'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import OrbLink from '@/components/OrbLink'
 import { siteConfig } from './config/siteConfig'
 import {
   layoutNextLine,
@@ -717,57 +718,9 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3 md:gap-4">
-            {/* GitHub - Black dot */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  ref={githubButtonRef}
-                  href="https://github.com/Zatfer17"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
-                  style={{
-                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${githubButtonColor}`,
-                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>GitHub</TooltipContent>
-            </Tooltip>
-            {/* SoundCloud - Orange dot */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  ref={soundcloudButtonRef}
-                  href="https://soundcloud.com/matteo-ferrini"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
-                  style={{
-                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${soundcloudButtonColor}`,
-                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>SoundCloud</TooltipContent>
-            </Tooltip>
-            {/* LinkedIn - Blue dot */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  ref={linkedInButtonRef}
-                  href="https://www.linkedin.com/in/matteo-ferrini/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-full hover:opacity-85 transition-opacity"
-                  style={{
-                    background: `linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0) 34%), radial-gradient(circle at 70% 75%, rgba(0,0,0,0.34), rgba(0,0,0,0) 50%), ${linkedInButtonColor}`,
-                    boxShadow: 'inset -6px -6px 10px rgba(0,0,0,0.24), inset 4px 4px 7px rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.24)',
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>LinkedIn</TooltipContent>
-            </Tooltip>
+            <OrbLink ref={githubButtonRef} href="https://github.com/Zatfer17" color={githubButtonColor} label="GitHub" />
+            <OrbLink ref={soundcloudButtonRef} href="https://soundcloud.com/matteo-ferrini" color={soundcloudButtonColor} label="SoundCloud" />
+            <OrbLink ref={linkedInButtonRef} href="https://www.linkedin.com/in/matteo-ferrini/" color={linkedInButtonColor} label="LinkedIn" />
           </div>
         </header>
 
